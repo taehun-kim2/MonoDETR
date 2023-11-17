@@ -3,7 +3,7 @@ random_seed: 444
 
 dataset:
   type: &dataset_type 'Custom'
-  root_dir: 'data/monodetr-sample'
+  root_dir: 'data/monodetr'
   train_split: 'train'
   test_split: 'val'
   batch_size: 2
@@ -14,6 +14,7 @@ dataset:
   meanshape: False  # use predefined anchor or not
   writelist: ['Car']
   clip_2d: False
+  max_objs: 100 # num queries
 
   aug_pd: True
   aug_crop: True
@@ -42,9 +43,9 @@ model:
 
   # Depth predictor
   mode: LID
-  num_depth_bins: 80
+  num_depth_bins: 150
   depth_min: 1e-3
-  depth_max: 60.0
+  depth_max: 150.0
 
   # Transformer
   with_box_refine: True
@@ -59,7 +60,7 @@ model:
   dim_feedforward: 256
   dropout: 0.1
   nheads: 8
-  num_queries: 50
+  num_queries: 100 # num_queries -> max_objs
   enc_n_points: 4
   dec_n_points: 4
   # DN
@@ -121,4 +122,4 @@ tester:
   mode: single  # 'single' or 'all'; 'all' to evaluate all ckpts in the folder
   checkpoint: 195  # the start ckpt epoch for 'all'
   threshold: 0.2  # confidence filter
-  topk: 50
+  topk: 100 # num_queries -> max_objs -> topk

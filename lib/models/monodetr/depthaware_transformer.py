@@ -77,6 +77,7 @@ class DepthAwareTransformer(nn.Module):
             activation="relu",
             return_intermediate_dec=False,
             num_feature_levels=4,
+            num_queries=50,
             dec_n_points=4,
             enc_n_points=4,
             two_stage=False,
@@ -100,7 +101,7 @@ class DepthAwareTransformer(nn.Module):
         self.encoder = VisualEncoder(encoder_layer, num_encoder_layers)
 
         decoder_layer = DepthAwareDecoderLayer(
-            d_model, dim_feedforward, dropout, activation, num_feature_levels, nhead, dec_n_points, group_num=group_num)
+            d_model, dim_feedforward, dropout, activation, num_feature_levels, num_queries, nhead, dec_n_points, group_num=group_num)
         self.decoder = DepthAwareDecoder(decoder_layer, num_decoder_layers, return_intermediate_dec, d_model, use_dab=use_dab, two_stage_dino=two_stage_dino)
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
@@ -387,7 +388,7 @@ class VisualEncoder(nn.Module):
 class DepthAwareDecoderLayer(nn.Module):
     def __init__(self, d_model=256, d_ffn=1024,
                  dropout=0.1, activation="relu",
-                 n_levels=4, n_heads=8, n_points=4, group_num=1):
+                 n_levels=4, n_queries=50, n_heads=8, n_points=4, group_num=1):
         super().__init__()
 
         # cross attention
@@ -422,6 +423,7 @@ class DepthAwareDecoderLayer(nn.Module):
         self.sa_kpos_proj = nn.Linear(d_model, d_model)
         self.sa_v_proj = nn.Linear(d_model, d_model)
         self.nhead = n_heads
+        self.nqueries = n_queries
         
 
     @staticmethod
@@ -476,10 +478,9 @@ class DepthAwareDecoderLayer(nn.Module):
         k = k.transpose(0, 1)
         v = tgt.transpose(0, 1)
         num_queries = q.shape[0]
-       
         if self.training:
-            num_noise = num_queries-self.group_num * 50
-            num_queries = self.group_num * 50
+            num_noise = num_queries-self.group_num * self.nqueries
+            num_queries = self.group_num * self.nqueries
             q_noise = q[:num_noise].repeat(1,self.group_num, 1)
             k_noise = k[:num_noise].repeat(1,self.group_num, 1)
             v_noise = v[:num_noise].repeat(1,self.group_num, 1)
@@ -652,6 +653,7 @@ def build_depthaware_transformer(cfg):
         num_decoder_layers=cfg['dec_layers'],
         return_intermediate_dec=cfg['return_intermediate_dec'],
         num_feature_levels=cfg['num_feature_levels'],
+        num_queries=cfg['num_queries'],
         dec_n_points=cfg['dec_n_points'],
         enc_n_points=cfg['enc_n_points'],
         two_stage=cfg['two_stage'],

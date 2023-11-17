@@ -75,9 +75,11 @@ class Trainer(object):
                     map_location=self.device,
                     logger=self.logger)
                 self.lr_scheduler.last_epoch = self.epoch - 1
-                self.logger.info("Loading Checkpoint... Best Result:{}, Best Epoch:{}".format(self.best_result, self.best_epoch))
+                if self.logger is not None:
+                    self.logger.info("Loading Checkpoint... Best Result:{}, Best Epoch:{}".format(self.best_result, self.best_epoch))
             else:
-                self.logger.info("Loading checkpoint failed. Starting from beginning")
+                if self.logger is not None:
+                    self.logger.info("Loading checkpoint failed. Starting from beginning")
             
         
     def train(self):
@@ -113,7 +115,8 @@ class Trainer(object):
                     ckpt_name)
 
                 if self.tester is not None:
-                    self.logger.info("Test Epoch {}".format(self.epoch))
+                    if self.logger is not None:
+                        self.logger.info("Test Epoch {}".format(self.epoch))
                     self.tester.inference()
                     cur_result = self.tester.evaluate()
                     print(cur_result, best_result)
@@ -124,11 +127,13 @@ class Trainer(object):
                         save_checkpoint(
                             get_checkpoint_state(self.model, self.optimizer, self.epoch, best_result, best_epoch),
                             ckpt_name)
-                    self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
+                    if self.logger is not None:
+                        self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
 
             progress_bar.update()
 
-        self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
+        if self.logger is not None:
+            self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
 
         return None
 

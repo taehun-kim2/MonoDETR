@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+
 from lib.datasets.kitti.kitti_dataset import KITTI_Dataset
 from lib.datasets.custom.custom_dataset import Custom_Dataset
 
@@ -10,7 +12,7 @@ def my_worker_init_fn(worker_id):
     np.random.seed(np.random.get_state()[1][0] + worker_id)
 
 
-def build_dataloader(cfg, workers=4):
+def build_dataloader(cfg, workers=4, device_num=1):
     # perpare dataset
     if cfg['type'] == 'KITTI':
         train_set = KITTI_Dataset(split=cfg['train_split'], cfg=cfg)
@@ -21,6 +23,9 @@ def build_dataloader(cfg, workers=4):
     
     else:
         raise NotImplementedError("%s dataset is not supported" % cfg['type'])
+
+    if device_num > 1:
+        train_set = DistributedSampler(train_set, shuffle=True)
 
     # prepare dataloader
     train_loader = DataLoader(dataset=train_set,
