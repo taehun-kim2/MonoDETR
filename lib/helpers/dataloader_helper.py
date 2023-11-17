@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 from lib.datasets.kitti.kitti_dataset import KITTI_Dataset
+from lib.datasets.custom.custom_dataset import Custom_Dataset
 
 
 # init datasets and dataloaders
@@ -13,7 +14,11 @@ def build_dataloader(cfg, workers=4):
     # perpare dataset
     if cfg['type'] == 'KITTI':
         train_set = KITTI_Dataset(split=cfg['train_split'], cfg=cfg)
-        test_set = KITTI_Dataset(split=cfg['test_split'], cfg=cfg)
+        test_set =  KITTI_Dataset(split=cfg['test_split'], cfg=cfg)
+    elif cfg['type'] == 'Custom':
+        train_set = Custom_Dataset(split=cfg['train_split'], cfg=cfg)
+        test_set =  Custom_Dataset(split=cfg['test_split'], cfg=cfg)    
+    
     else:
         raise NotImplementedError("%s dataset is not supported" % cfg['type'])
 

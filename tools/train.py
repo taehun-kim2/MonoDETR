@@ -25,20 +25,19 @@ from lib.helpers.utils_helper import set_random_seed
 
 parser = argparse.ArgumentParser(description='Depth-aware Transformer for Monocular 3D Object Detection')
 parser.add_argument('--config', dest='config', help='settings of detection in yaml format')
-parser.add_argument('-e', '--evaluate_only', action='store_true', default=False, help='evaluation only')
 args = parser.parse_args()
-
 
 def main():
     assert (os.path.exists(args.config))
     cfg = yaml.load(open(args.config, 'r'), Loader=yaml.Loader)
     set_random_seed(cfg.get('random_seed', 444))
+    ctime = datetime.datetime.now()
 
     model_name = cfg['model_name']
     output_path = os.path.join('./' + cfg["trainer"]['save_path'], model_name)
     os.makedirs(output_path, exist_ok=True)
 
-    log_file = os.path.join(output_path, 'train.log.%s' % datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+    log_file = os.path.join(output_path, 'train.log.%s' % ctime.strftime('%Y%m%d_%H%M%S'))
     logger = create_logger(log_file)
 
     # build dataloader
@@ -54,21 +53,13 @@ def main():
     else:
         model = torch.nn.DataParallel(model, device_ids=gpu_ids).to(device)
 
-    if args.evaluate_only:
-        logger.info('###################  Evaluation Only  ##################')
-        tester = Tester(cfg=cfg['tester'],
-                        model=model,
-                        dataloader=test_loader,
-                        logger=logger,
-                        train_cfg=cfg['trainer'],
-                        model_name=model_name)
-        tester.test()
-        return
     #ipdb.set_trace()
     #  build optimizer
     optimizer = build_optimizer(cfg['optimizer'], model)
     # build lr scheduler
     lr_scheduler, warmup_lr_scheduler = build_lr_scheduler(cfg['lr_scheduler'], optimizer, last_epoch=-1)
+
+    output_dir = os.path.join('./' + cfg["trainer"]['save_path'], model_name, ctime.strftime('%Y%m%d_%H%M%S'))
 
     trainer = Trainer(cfg=cfg['trainer'],
                       model=model,
@@ -79,18 +70,21 @@ def main():
                       warmup_lr_scheduler=warmup_lr_scheduler,
                       logger=logger,
                       loss=loss,
-                      model_name=model_name)
+                      model_name=model_name,
+                      output_dir=output_dir)
 
     tester = Tester(cfg=cfg['tester'],
                     model=trainer.model,
                     dataloader=test_loader,
                     logger=logger,
                     train_cfg=cfg['trainer'],
-                    model_name=model_name)
+                    model_name=model_name,
+                    output_dir=output_dir)
+    
     if cfg['dataset']['test_split'] != 'test':
         trainer.tester = tester
 
-    logger.info('###################  Training  ##################')
+    logger.info('Training')
     logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
     logger.info('Learning Rate: %f' % (cfg['optimizer']['lr']))
 
@@ -99,7 +93,7 @@ def main():
     if cfg['dataset']['test_split'] == 'test':
         return
 
-    logger.info('###################  Testing  ##################')
+    logger.info('Evaluation')
     logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
     logger.info('Split: %s' % (cfg['dataset']['test_split']))
 

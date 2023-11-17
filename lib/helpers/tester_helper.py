@@ -1,41 +1,44 @@
 import os
 import tqdm
+import time
 import shutil
+import datetime
 
 import torch
 from lib.helpers.save_helper import load_checkpoint
 from lib.helpers.decode_helper import extract_dets_from_outputs
 from lib.helpers.decode_helper import decode_detections
-import time
 
 
 class Tester(object):
-    def __init__(self, cfg, model, dataloader, logger, train_cfg=None, model_name='monodetr'):
+    def __init__(self, cfg, model, dataloader, logger, train_cfg=None, model_name='monodetr', checkpoint_path=None, output_dir=None):
         self.cfg = cfg
         self.model = model
         self.dataloader = dataloader
         self.max_objs = dataloader.dataset.max_objs    # max objects per images, defined in dataset
         self.class_name = dataloader.dataset.class_name
-        self.output_dir = os.path.join('./' + train_cfg['save_path'], model_name)
         self.dataset_type = cfg.get('type', 'KITTI')
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.logger = logger
         self.train_cfg = train_cfg
         self.model_name = model_name
-
+        self.checkpoint_path = checkpoint_path
+        self.output_dir = output_dir
+        
     def test(self):
         assert self.cfg['mode'] in ['single', 'all']
 
         # test a single checkpoint
         if self.cfg['mode'] == 'single' or not self.train_cfg["save_all"]:
-            if self.train_cfg["save_all"]:
-                checkpoint_path = os.path.join(self.output_dir, "checkpoint_epoch_{}.pth".format(self.cfg['checkpoint']))
-            else:
-                checkpoint_path = os.path.join(self.output_dir, "checkpoint_best.pth")
-            assert os.path.exists(checkpoint_path)
+            if self.checkpoint_path is None:
+                if self.train_cfg["save_all"]:
+                    self.checkpoint_path = os.path.join(self.output_dir, "checkpoint_epoch_{}.pth".format(self.cfg['checkpoint']))
+                else:
+                    self.checkpoint_path = os.path.join(self.output_dir, "checkpoint_best.pth")
+            assert os.path.exists(self.checkpoint_path)
             load_checkpoint(model=self.model,
                             optimizer=None,
-                            filename=checkpoint_path,
+                            filename=self.checkpoint_path,
                             map_location=self.device,
                             logger=self.logger)
             self.model.to(self.device)
@@ -116,6 +119,8 @@ class Tester(object):
         for img_id in results.keys():
             if self.dataset_type == 'KITTI':
                 output_path = os.path.join(output_dir, '{:06d}.txt'.format(img_id))
+            elif self.dataset_type == 'Custom':
+                output_path = os.path.join(output_dir, '{}.txt'.format(img_id))
             else:
                 os.makedirs(os.path.join(output_dir, self.dataloader.dataset.get_sensor_modality(img_id)), exist_ok=True)
                 output_path = os.path.join(output_dir,

@@ -1,9 +1,18 @@
-import os
+import copy
+import random
+import os, sys
 import numpy as np
 import torch.utils.data as data
+
 from PIL import Image, ImageFile
-import random
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+if not path in sys.path:
+    sys.path.insert(1, path)
+del path
+
 
 from lib.datasets.utils import angle2class
 from lib.datasets.utils import gaussian_radius
@@ -15,8 +24,7 @@ from lib.datasets.kitti.kitti_utils import affine_transform
 from lib.datasets.kitti.kitti_eval_python.eval import get_official_eval_result
 from lib.datasets.kitti.kitti_eval_python.eval import get_distance_eval_result
 import lib.datasets.kitti.kitti_eval_python.kitti_common as kitti
-import copy
-from .pd import PhotometricDistort
+from lib.datasets.kitti.pd import PhotometricDistort
 
 
 class KITTI_Dataset(data.Dataset):
@@ -105,6 +113,8 @@ class KITTI_Dataset(data.Dataset):
         gt_annos = kitti.get_label_annos(self.label_dir, img_ids)
 
         test_id = {'Car': 0, 'Pedestrian':1, 'Cyclist': 2}
+        
+        print(gt_annos)
 
         logger.info('==> Evaluating (official) ...')
         car_moderate = 0
@@ -332,27 +342,22 @@ class KITTI_Dataset(data.Dataset):
 
 if __name__ == '__main__':
     from torch.utils.data import DataLoader
-    cfg = {'root_dir': '../../../data/KITTI',
+    cfg = {'root_dir': 'data/kitti',
            'random_flip': 0.0, 'random_crop': 1.0, 'scale': 0.8, 'shift': 0.1, 'use_dontcare': False,
            'class_merging': False, 'writelist':['Pedestrian', 'Car', 'Cyclist'], 'use_3d_center':False}
+    
     dataset = KITTI_Dataset('train', cfg)
     dataloader = DataLoader(dataset=dataset, batch_size=1)
     print(dataset.writelist)
 
-    for batch_idx, (inputs, targets, info) in enumerate(dataloader):
+    for batch_idx, (inputs, calib, targets, info) in enumerate(dataloader):
         # test image
         img = inputs[0].numpy().transpose(1, 2, 0)
         img = (img * dataset.std + dataset.mean) * 255
         img = Image.fromarray(img.astype(np.uint8))
-        img.show()
-        # print(targets['size_3d'][0][0])
-
-        # test heatmap
-        heatmap = targets['heatmap'][0]  # image id
-        heatmap = Image.fromarray(heatmap[0].numpy() * 255)  # cats id
-        heatmap.show()
-
-        break
+        img.save('test.png')
+        print(targets['size_3d'][0][0])
+        # print(targets['boxes_3d'])
 
     # print ground truth fisrt
     objects = dataset.get_label(0)

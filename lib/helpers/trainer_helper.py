@@ -2,6 +2,7 @@ import os
 import tqdm
 
 import torch
+import datetime
 import numpy as np
 import torch.nn as nn
 
@@ -23,7 +24,8 @@ class Trainer(object):
                  warmup_lr_scheduler,
                  logger,
                  loss,
-                 model_name):
+                 model_name,
+                 output_dir):
         self.cfg = cfg
         self.model = model
         self.optimizer = optimizer
@@ -38,7 +40,7 @@ class Trainer(object):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.detr_loss = loss
         self.model_name = model_name
-        self.output_dir = os.path.join('./' + cfg['save_path'], model_name)
+        self.output_dir = output_dir
         self.tester = None
 
         # loading pretrain/resume model
@@ -51,16 +53,32 @@ class Trainer(object):
                             logger=self.logger)
 
         if cfg.get('resume_model', None):
-            resume_model_path = os.path.join(self.output_dir, "checkpoint.pth")
-            assert os.path.exists(resume_model_path)
-            self.epoch, self.best_result, self.best_epoch = load_checkpoint(
-                model=self.model.to(self.device),
-                optimizer=self.optimizer,
-                filename=resume_model_path,
-                map_location=self.device,
-                logger=self.logger)
-            self.lr_scheduler.last_epoch = self.epoch - 1
-            self.logger.info("Loading Checkpoint... Best Result:{}, Best Epoch:{}".format(self.best_result, self.best_epoch))
+            root_dir = os.path.join('./' + cfg['save_path'], model_name)
+            
+            directories = [i for i in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, i))]
+            directories.sort()
+            
+            if len(directories) > 0:
+                resume_dir = directories[-1]             
+                output_dir = os.path.join(root_dir, resume_dir)
+                
+                resume_model_path = os.path.join(output_dir, "checkpoint.pth")
+            else:
+                resume_model_path = ""
+            
+            if os.path.exists(resume_model_path):
+                self.output_dir = output_dir
+                self.epoch, self.best_result, self.best_epoch = load_checkpoint(
+                    model=self.model.to(self.device),
+                    optimizer=self.optimizer,
+                    filename=resume_model_path,
+                    map_location=self.device,
+                    logger=self.logger)
+                self.lr_scheduler.last_epoch = self.epoch - 1
+                self.logger.info("Loading Checkpoint... Best Result:{}, Best Epoch:{}".format(self.best_result, self.best_epoch))
+            else:
+                self.logger.info("Loading checkpoint failed. Starting from beginning")
+            
         
     def train(self):
         start_epoch = self.epoch
@@ -98,6 +116,7 @@ class Trainer(object):
                     self.logger.info("Test Epoch {}".format(self.epoch))
                     self.tester.inference()
                     cur_result = self.tester.evaluate()
+                    print(cur_result, best_result)
                     if cur_result > best_result:
                         best_result = cur_result
                         best_epoch = self.epoch
