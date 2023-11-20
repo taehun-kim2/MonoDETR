@@ -114,8 +114,6 @@ class KITTI_Dataset(data.Dataset):
 
         test_id = {'Car': 0, 'Pedestrian':1, 'Cyclist': 2}
         
-        print(gt_annos)
-
         logger.info('==> Evaluating (official) ...')
         car_moderate = 0
         for category in self.writelist:

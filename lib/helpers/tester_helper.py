@@ -1,8 +1,11 @@
 import os
-import tqdm
 import time
 import shutil
 import datetime
+
+from functools import partial
+from tqdm import tqdm as std_tqdm
+tqdm = partial(std_tqdm, dynamic_ncols=True)
 
 import torch
 from lib.helpers.save_helper import load_checkpoint
@@ -70,7 +73,7 @@ class Tester(object):
         self.model.eval()
 
         results = {}
-        progress_bar = tqdm.tqdm(total=len(self.dataloader), leave=True, desc='Evaluation Progress')
+        progress_bar = tqdm(total=len(self.dataloader), leave=False, desc='Evaluation Progress')
         model_infer_time = 0
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.dataloader):
             # load evaluation data and move data to GPU.
@@ -90,8 +93,11 @@ class Tester(object):
             dets = dets.detach().cpu().numpy()
 
             # get corresponding calibs & transform tensor to numpy
-            calibs = [self.dataloader.dataset.get_calib(filename=i) for i in info['img_id']]
-            # info = {key: val.detach().cpu().numpy() for key, val in info.items()}
+            if self.dataset_type == 'Custom':
+                calibs = [self.dataloader.dataset.get_calib(filename=i) for i in info['img_id']]
+            else:
+                calibs = [self.dataloader.dataset.get_calib(i) for i in info['img_id']]
+                
             cls_mean_size = self.dataloader.dataset.cls_mean_size
             dets = decode_detections(
                 dets=dets,
@@ -103,7 +109,7 @@ class Tester(object):
             results.update(dets)
             progress_bar.update()
 
-        print("inference on {} images by {}/per image".format(
+        self.logger.info("inference on {} images by {}/per image".format(
             len(self.dataloader), model_infer_time / len(self.dataloader)))
 
         progress_bar.close()
@@ -117,7 +123,6 @@ class Tester(object):
         os.makedirs(output_dir, exist_ok=True)
 
         for img_id in results.keys():
-            print(img_id)
             if self.dataset_type == 'KITTI':
                 output_path = os.path.join(output_dir, '{:06d}.txt'.format(img_id))
             elif self.dataset_type == 'Custom':

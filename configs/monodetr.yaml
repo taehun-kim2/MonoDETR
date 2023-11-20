@@ -6,7 +6,7 @@ dataset:
   root_dir: 'data/kitti'
   train_split: 'train'
   test_split: 'val'
-  batch_size: 2
+  batch_size: 6
   use_3d_center: True
   class_merging: False
   use_dontcare: False

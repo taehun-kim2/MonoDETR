@@ -1,10 +1,12 @@
 import os
-import tqdm
-
 import torch
 import datetime
 import numpy as np
 import torch.nn as nn
+
+from functools import partial
+from tqdm import tqdm as std_tqdm
+tqdm = partial(std_tqdm, dynamic_ncols=True)
 
 from lib.helpers.save_helper import get_checkpoint_state
 from lib.helpers.save_helper import load_checkpoint
@@ -85,7 +87,7 @@ class Trainer(object):
     def train(self):
         start_epoch = self.epoch
 
-        progress_bar = tqdm.tqdm(range(start_epoch, self.cfg['max_epoch']), dynamic_ncols=True, leave=True, desc='epochs')
+        progress_bar = tqdm(range(start_epoch, self.cfg['max_epoch']), leave=True, desc='epochs')
         best_result = self.best_result
         best_epoch = self.best_epoch
         for epoch in range(start_epoch, self.cfg['max_epoch']):
@@ -119,7 +121,6 @@ class Trainer(object):
                         self.logger.info("Test Epoch {}".format(self.epoch))
                     self.tester.inference()
                     cur_result = self.tester.evaluate()
-                    print(cur_result, best_result)
                     if cur_result > best_result:
                         best_result = cur_result
                         best_epoch = self.epoch
@@ -140,9 +141,9 @@ class Trainer(object):
     def train_one_epoch(self, epoch):
         torch.set_grad_enabled(True)
         self.model.train()
-        print(">>>>>>> Epoch:", str(epoch) + ":")
+        self.logger.info("Epoch:" + str(epoch))
 
-        progress_bar = tqdm.tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters')
+        progress_bar = tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters')
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.train_loader):
             inputs = inputs.to(self.device)
             calibs = calibs.to(self.device)
@@ -177,19 +178,19 @@ class Trainer(object):
 
             flags = [True] * 5
             if batch_idx % 30 == 0:
-                print("----", batch_idx, "----")
-                print("%s: %.2f, " %("loss_detr", detr_losses_dict_log["loss_detr"]))
+                out_str = ""
+                out_str += "----" + str(batch_idx) + "----\n"
+                out_str += "%s: %.2f, " %("loss_detr", detr_losses_dict_log["loss_detr"])
                 for key, val in detr_losses_dict_log.items():
                     if key == "loss_detr":
                         continue
                     if "0" in key or "1" in key or "2" in key or "3" in key or "4" in key or "5" in key:
                         if flags[int(key[-1])]:
-                            print("")
+                            out_str += '\n'
                             flags[int(key[-1])] = False
-                    print("%s: %.2f, " %(key, val), end="")
-                print("")
-                print("")
-
+                    out_str += "%s: %.2f, " %(key, val)
+                out_str += '\n\n'
+                self.logger.info(out_str)
             detr_losses.backward()
             self.optimizer.step()
 

@@ -3,13 +3,13 @@ import numpy as np
 import logging
 import random
 
-def create_logger(log_file, rank=0):
+def create_logger(log_file):
     log_format = '%(asctime)s  %(levelname)5s  %(message)s'
-    logging.basicConfig(level=logging.INFO if rank == 0 else 'ERROR',
+    logging.basicConfig(level=logging.INFO,
                         format=log_format,
                         filename=log_file)
     console = logging.StreamHandler()
-    console.setLevel(logging.INFO if rank == 0 else 'ERROR')
+    console.setLevel(logging.ERROR)
     console.setFormatter(logging.Formatter(log_format))
     logging.getLogger(__name__).addHandler(console)
     return logging.getLogger(__name__)

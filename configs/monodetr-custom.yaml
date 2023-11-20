@@ -14,7 +14,7 @@ dataset:
   meanshape: False  # use predefined anchor or not
   writelist: ['Car']
   clip_2d: False
-  max_objs: 100 # num queries
+  max_objs: &num_queries 100 # num queries
 
   aug_pd: True
   aug_crop: True
@@ -60,7 +60,7 @@ model:
   dim_feedforward: 256
   dropout: 0.1
   nheads: 8
-  num_queries: 100 # num_queries -> max_objs
+  num_queries: *num_queries # num_queries -> max_objs
   enc_n_points: 4
   dec_n_points: 4
   # DN
@@ -100,11 +100,11 @@ lr_scheduler:
   type: 'step'  # 'step' or 'cos'
   warmup: False  # 5 epoches, cosine warmup, init_lir=0.00001 in default
   decay_rate: 0.1
-  decay_list: [125, 165]
+  decay_list: [30, 40]
 
 
 trainer:
-  max_epoch: 195
+  max_epoch: 50
   gpu_ids: '1'
   save_frequency: 1  # checkpoint save interval (in epoch)
   resume_model: True
@@ -122,4 +122,4 @@ tester:
   mode: single  # 'single' or 'all'; 'all' to evaluate all ckpts in the folder
   checkpoint: 195  # the start ckpt epoch for 'all'
   threshold: 0.2  # confidence filter
-  topk: 100 # num_queries -> max_objs -> topk
+  topk: *num_queries # num_queries -> max_objs -> topk

@@ -128,7 +128,6 @@ class Custom_Dataset(data.Dataset):
         gt_annos = custom.get_label_annos(self.label_dir, filenames)
 
         test_id = self.cls2id
-        print(self.label_dir)
 
         logger.info('==> Evaluating (official) ...')
         car_moderate = 0
