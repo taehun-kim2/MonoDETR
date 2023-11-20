@@ -3,7 +3,7 @@ random_seed: 444
 
 dataset:
   type: &dataset_type 'Custom'
-  root_dir: 'data/monodetr'
+  root_dir: 'data/custom'
   train_split: 'train'
   test_split: 'val'
   batch_size: 6
