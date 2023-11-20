@@ -47,13 +47,9 @@ def main():
 
     # build model
     model, _ = build_model(cfg['model'])
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     gpu_ids = list(map(int, cfg['trainer']['gpu_ids'].split(',')))
 
-    if len(gpu_ids) == 1:
-        model = model.to(device)
-    else:
-        model = torch.nn.DataParallel(model, device_ids=gpu_ids).to(device)
+    model = model.cuda()
 
     output_dir = os.path.join('./' + cfg["trainer"]['save_path'], model_name, ctime.strftime('%Y%m%d_%H%M%S'))
     logger.info('Evaluation Only')

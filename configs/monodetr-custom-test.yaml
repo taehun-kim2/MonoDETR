@@ -3,7 +3,7 @@ random_seed: 444
 
 dataset:
   type: &dataset_type 'Custom'
-  root_dir: 'data/monodetr'
+  root_dir: 'data/monodetr-sample'
   train_split: 'train'
   test_split: 'val'
   batch_size: 6
@@ -27,7 +27,7 @@ dataset:
   depth_scale: 'normal'
 
 
-model_name: 'monodetr-custom'
+model_name: 'monodetr-custom-test'
 model:
   num_classes: 9
   return_intermediate_dec: True
@@ -110,7 +110,7 @@ trainer:
   resume_model: True
   # pretrain_model: path/to/ckpt
   save_path: 'work_dirs'
-  save_all: True  # False for only savng the best and latest ckpts
+  save_all: False  # False for only savng the best and latest ckpts
   use_dn: False
   scalar: 5
   label_noise_scale: 0.2

@@ -90,8 +90,8 @@ class Tester(object):
             dets = dets.detach().cpu().numpy()
 
             # get corresponding calibs & transform tensor to numpy
-            calibs = [self.dataloader.dataset.get_calib(index) for index in info['img_id']]
-            info = {key: val.detach().cpu().numpy() for key, val in info.items()}
+            calibs = [self.dataloader.dataset.get_calib(filename=i) for i in info['img_id']]
+            # info = {key: val.detach().cpu().numpy() for key, val in info.items()}
             cls_mean_size = self.dataloader.dataset.cls_mean_size
             dets = decode_detections(
                 dets=dets,
@@ -117,6 +117,7 @@ class Tester(object):
         os.makedirs(output_dir, exist_ok=True)
 
         for img_id in results.keys():
+            print(img_id)
             if self.dataset_type == 'KITTI':
                 output_path = os.path.join(output_dir, '{:06d}.txt'.format(img_id))
             elif self.dataset_type == 'Custom':
