@@ -4,14 +4,18 @@ import math
 
 
 def build_lr_scheduler(cfg, optimizer, last_epoch):
-    def lr_lbmd(cur_epoch):
-        cur_decay = 1
-        for decay_step in cfg['decay_list']:
-            if cur_epoch >= decay_step:
-                cur_decay = cur_decay * cfg['decay_rate']
-        return cur_decay
+    if cfg['type'] == 'step':
+        def lr_lbmd(cur_epoch):
+            cur_decay = 1
+            for decay_step in cfg['decay_list']:
+                if cur_epoch >= decay_step:
+                    cur_decay = cur_decay * cfg['decay_rate']
+            return cur_decay
 
-    lr_scheduler = lr_sched.LambdaLR(optimizer, lr_lbmd, last_epoch=last_epoch)
+        lr_scheduler = lr_sched.LambdaLR(optimizer, lr_lbmd, last_epoch=last_epoch)
+    elif cfg['type'] == 'cos':
+        lr_scheduler = lr_sched.CosineAnnealingLR(optimizer, T_max=last_epoch, eta_min=0.001)
+    
     warmup_lr_scheduler = None
     if cfg['warmup']:
         warmup_lr_scheduler = CosineWarmupLR(optimizer, num_epoch=5, init_lr=0.00001)

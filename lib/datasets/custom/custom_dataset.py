@@ -36,7 +36,7 @@ class Custom_Dataset(data.Dataset):
         self.max_objs = cfg.get('max_objs', 50)
         self.class_name = class_name
         self.cls2id = dict(zip(class_name, [i for i in range(len(class_name))]))
-        self.resolution = np.array([1280, 768])  # W * H
+        self.resolution = np.array(cfg.get('resolution', [1280, 768]))  # W * H
         self.use_3d_center = cfg.get('use_3d_center', True)
         self.writelist = class_name[:-1]
         # anno: use src annotations as GT, proj: use projected 2d bboxes as GT
@@ -73,6 +73,7 @@ class Custom_Dataset(data.Dataset):
         self.random_crop = cfg.get('random_crop', 0.5)
         self.scale = cfg.get('scale', 0.4)
         self.shift = cfg.get('shift', 0.1)
+        self.ignore_threshold = cfg.get('ignore_threshold', 65)
 
         self.depth_scale = cfg.get('depth_scale', 'normal')
 
@@ -239,10 +240,9 @@ class Custom_Dataset(data.Dataset):
                 continue
 
             # ignore the samples beyond the threshold [hard encoding]
-            threshold = 65
-            if objects[i].pos[-1] > threshold:
+            if objects[i].pos[-1] > self.ignore_threshold:
                 continue
-
+            
             # process 2d bbox & get 2d center
             bbox_2d = objects[i].box2d.copy()
             

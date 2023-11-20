@@ -24,6 +24,9 @@ dataset:
   scale: 0.05
   shift: 0.05
 
+  resolution: [1280, 720]
+  ignore_threshold: 150
+
   depth_scale: 'normal'
 
 
@@ -120,6 +123,6 @@ trainer:
 tester:
   type: *dataset_type
   mode: single  # 'single' or 'all'; 'all' to evaluate all ckpts in the folder
-  checkpoint: 195  # the start ckpt epoch for 'all'
+  checkpoint: 50  # the start ckpt epoch for 'all'
   threshold: 0.2  # confidence filter
   topk: *num_queries # num_queries -> max_objs -> topk

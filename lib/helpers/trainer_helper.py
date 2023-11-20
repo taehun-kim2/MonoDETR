@@ -142,6 +142,7 @@ class Trainer(object):
         torch.set_grad_enabled(True)
         self.model.train()
         self.logger.info("Epoch:" + str(epoch))
+        self.logger.info("LR:" + str(self.lr_scheduler.get_last_lr()[0]))
 
         progress_bar = tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters')
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.train_loader):
