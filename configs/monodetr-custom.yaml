@@ -6,7 +6,7 @@ dataset:
   root_dir: 'data/custom'
   train_split: 'train'
   test_split: 'val'
-  batch_size: 6
+  batch_size: 16
   use_3d_center: True
   class_merging: False
   use_dontcare: False

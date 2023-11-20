@@ -436,7 +436,7 @@ class SetCriterion(nn.Module):
 
         # regression loss
         heading_input_res = heading_input[:, 12:24]
-        cls_onehot = torch.zeros(heading_target_cls.shape[0], 12).cuda().scatter_(dim=1, index=heading_target_cls.view(-1, 1), value=1)
+        cls_onehot = torch.zeros(heading_target_cls.shape[0], 12).to(heading_input_res.device).scatter_(dim=1, index=heading_target_cls.view(-1, 1), value=1)
         heading_input_res = torch.sum(heading_input_res * cls_onehot, 1)
         reg_loss = F.l1_loss(heading_input_res, heading_target_res, reduction='none')
         

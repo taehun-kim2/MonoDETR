@@ -57,9 +57,6 @@ def main():
     cfg['trainer']['device_num'] = device_num
     cfg['trainer']['local_rank'] = local_rank
 
-    if device_num > 1:
-        cuda.set_device(args.local_rank)
-        dist.init_process_group(backend='nccl', rank=args.local_rank, world_size=args.device_num, timeout=datetime.timedelta(seconds=3600))
         
     model_name = cfg['model_name']
     output_path = os.path.join('./' + cfg["trainer"]['save_path'], model_name)
@@ -67,21 +64,22 @@ def main():
         os.makedirs(output_path, exist_ok=True)
 
     log_file = os.path.join(output_path, 'train.log.%s' % ctime.strftime('%Y%m%d_%H%M%S'))
-    if local_rank <= 0:
-        logger = create_logger(log_file)
-    else:
-        logger = None
+    logger = create_logger(log_file, rank=local_rank)
 
+    if device_num > 1:
+        cuda.set_device(local_rank)
+        dist.init_process_group(backend='nccl', rank=local_rank, world_size=device_num, timeout=datetime.timedelta(seconds=3600))
+        
     # build dataloader
     train_loader, test_loader = build_dataloader(cfg['dataset'], device_num=device_num)
-        
+    
     # build model
     model, loss = build_model(cfg['model'])
     
     if device_num > 1:
         model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        model = model.cuda()
-        model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
+        model = model.to('cuda:{}'.format(local_rank))
+        model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], find_unused_parameters=True)
     else:
         model = model.cuda()
         
@@ -104,7 +102,7 @@ def main():
                       loss=loss,
                       model_name=model_name,
                       output_dir=output_dir)
-
+    
     tester = Tester(cfg=cfg['tester'],
                     model=trainer.model,
                     dataloader=test_loader,
@@ -116,20 +114,18 @@ def main():
     if local_rank <= 0:
         trainer.tester = tester
 
-    if logger is not None:
-        logger.info('Training')
-        logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
-        logger.info('Learning Rate: %f' % (cfg['optimizer']['lr']))
+    logger.info('Training')
+    logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
+    logger.info('Learning Rate: %f' % (cfg['optimizer']['lr']))
 
     trainer.train()
 
     if cfg['dataset']['test_split'] == 'test':
         return
 
-    if logger is not None:
-        logger.info('Evaluation')
-        logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
-        logger.info('Split: %s' % (cfg['dataset']['test_split']))
+    logger.info('Evaluation')
+    logger.info('Batch Size: %d' % (cfg['dataset']['batch_size']))
+    logger.info('Split: %s' % (cfg['dataset']['test_split']))
 
     if local_rank <= 0:
         tester.test()

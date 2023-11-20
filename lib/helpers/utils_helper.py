@@ -3,9 +3,9 @@ import numpy as np
 import logging
 import random
 
-def create_logger(log_file):
+def create_logger(log_file, rank=-1):
     log_format = '%(asctime)s  %(levelname)5s  %(message)s'
-    logging.basicConfig(level=logging.INFO,
+    logging.basicConfig(level=logging.INFO if rank <= 0 else logging.ERROR,
                         format=log_format,
                         filename=log_file)
     console = logging.StreamHandler()

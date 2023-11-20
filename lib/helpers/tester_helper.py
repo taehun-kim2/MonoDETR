@@ -42,7 +42,7 @@ class Tester(object):
             load_checkpoint(model=self.model,
                             optimizer=None,
                             filename=self.checkpoint_path,
-                            map_location=self.device,
+                            map_location='cpu',
                             logger=self.logger)
             self.model.to(self.device)
             self.inference()
@@ -62,7 +62,7 @@ class Tester(object):
                 load_checkpoint(model=self.model,
                                 optimizer=None,
                                 filename=checkpoint,
-                                map_location=self.device,
+                                map_location='cpu',
                                 logger=self.logger)
                 self.model.to(self.device)
                 self.inference()

@@ -51,7 +51,7 @@ class Trainer(object):
             load_checkpoint(model=self.model,
                             optimizer=None,
                             filename=cfg['pretrain_model'],
-                            map_location=self.device,
+                            map_location='cpu',
                             logger=self.logger)
 
         if cfg.get('resume_model', None):
@@ -71,10 +71,10 @@ class Trainer(object):
             if os.path.exists(resume_model_path):
                 self.output_dir = output_dir
                 self.epoch, self.best_result, self.best_epoch = load_checkpoint(
-                    model=self.model.to(self.device),
+                    model=self.model,
                     optimizer=self.optimizer,
                     filename=resume_model_path,
-                    map_location=self.device,
+                    map_location='cpu',
                     logger=self.logger)
                 self.lr_scheduler.last_epoch = self.epoch - 1
                 if self.logger is not None:
@@ -87,7 +87,7 @@ class Trainer(object):
     def train(self):
         start_epoch = self.epoch
 
-        progress_bar = tqdm(range(start_epoch, self.cfg['max_epoch']), leave=True, desc='epochs')
+        progress_bar = tqdm(range(start_epoch, self.cfg['max_epoch']), leave=True, desc='epochs') if self.cfg['local_rank'] <= 0 else None
         best_result = self.best_result
         best_epoch = self.best_epoch
         for epoch in range(start_epoch, self.cfg['max_epoch']):
@@ -131,7 +131,8 @@ class Trainer(object):
                     if self.logger is not None:
                         self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
 
-            progress_bar.update()
+            if progress_bar is not None:
+                progress_bar.update()
 
         if self.logger is not None:
             self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
@@ -144,7 +145,7 @@ class Trainer(object):
         self.logger.info("Epoch:" + str(epoch))
         self.logger.info("LR:" + str(self.lr_scheduler.get_last_lr()[0]))
 
-        progress_bar = tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters')
+        progress_bar = tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters') if self.cfg['local_rank'] <= 0 else None
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.train_loader):
             inputs = inputs.to(self.device)
             calibs = calibs.to(self.device)
@@ -195,8 +196,10 @@ class Trainer(object):
             detr_losses.backward()
             self.optimizer.step()
 
-            progress_bar.update()
-        progress_bar.close()
+            if progress_bar is not None:
+                progress_bar.update()
+        if progress_bar is not None:
+            progress_bar.close()
 
     def prepare_targets(self, targets, batch_size):
         targets_list = []

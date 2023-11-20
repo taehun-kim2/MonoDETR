@@ -25,16 +25,19 @@ def build_dataloader(cfg, workers=4, device_num=1):
         raise NotImplementedError("%s dataset is not supported" % cfg['type'])
 
     if device_num > 1:
-        train_set = DistributedSampler(train_set, shuffle=True)
+        train_sampler = DistributedSampler(train_set, shuffle=True)
+    else:
+        train_sampler = None
 
     # prepare dataloader
     train_loader = DataLoader(dataset=train_set,
                               batch_size=cfg['batch_size'],
                               num_workers=workers,
                               worker_init_fn=my_worker_init_fn,
-                              shuffle=True,
-                              pin_memory=False,
-                              drop_last=False)
+                              shuffle=train_sampler is None,
+                              sampler=train_sampler,
+                              pin_memory=True,
+                              drop_last=True)
     test_loader = DataLoader(dataset=test_set,
                              batch_size=cfg['batch_size'],
                              num_workers=workers,
