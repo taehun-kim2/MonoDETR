@@ -12,7 +12,7 @@ def my_worker_init_fn(worker_id):
     np.random.seed(np.random.get_state()[1][0] + worker_id)
 
 
-def build_dataloader(cfg, workers=4, device_num=1):
+def build_dataloader(cfg, device_num=1):
     # perpare dataset
     if cfg['type'] == 'KITTI':
         train_set = KITTI_Dataset(split=cfg['train_split'], cfg=cfg)
@@ -32,7 +32,7 @@ def build_dataloader(cfg, workers=4, device_num=1):
     # prepare dataloader
     train_loader = DataLoader(dataset=train_set,
                               batch_size=cfg['batch_size'],
-                              num_workers=workers,
+                              num_workers=cfg['num_workers'],
                               worker_init_fn=my_worker_init_fn,
                               shuffle=train_sampler is None,
                               sampler=train_sampler,
@@ -40,7 +40,7 @@ def build_dataloader(cfg, workers=4, device_num=1):
                               drop_last=True)
     test_loader = DataLoader(dataset=test_set,
                              batch_size=cfg['batch_size'],
-                             num_workers=workers,
+                             num_workers=cfg['num_workers'],
                              worker_init_fn=my_worker_init_fn,
                              shuffle=False,
                              pin_memory=False,

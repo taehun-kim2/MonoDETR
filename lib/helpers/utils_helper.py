@@ -7,7 +7,7 @@ def create_logger(log_file, rank=-1):
     log_format = '%(asctime)s  %(levelname)5s  %(message)s'
     logging.basicConfig(level=logging.INFO if rank <= 0 else logging.ERROR,
                         format=log_format,
-                        filename=log_file)
+                        filename=log_file if rank <= 0 else None)
     console = logging.StreamHandler()
     console.setLevel(logging.ERROR)
     console.setFormatter(logging.Formatter(log_format))

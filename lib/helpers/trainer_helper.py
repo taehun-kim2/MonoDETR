@@ -1,12 +1,12 @@
 import os
+import re
 import torch
 import datetime
 import numpy as np
 import torch.nn as nn
 
 from functools import partial
-from tqdm import tqdm as std_tqdm
-tqdm = partial(std_tqdm, dynamic_ncols=True)
+from tqdm import tqdm
 
 from lib.helpers.save_helper import get_checkpoint_state
 from lib.helpers.save_helper import load_checkpoint
@@ -14,6 +14,10 @@ from lib.helpers.save_helper import save_checkpoint
 
 from utils import misc
 
+def natsorted(l): 
+    convert = lambda text: int(text) if text.isdigit() else text.lower()
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(l, key=alphanum_key)
 
 class Trainer(object):
     def __init__(self,
@@ -60,16 +64,17 @@ class Trainer(object):
             directories = [i for i in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, i))]
             directories.sort()
             
+            resume_model_path = ""
             if len(directories) > 0:
                 resume_dir = directories[-1]             
                 output_dir = os.path.join(root_dir, resume_dir)
+                resume_models = [i for i in os.listdir(output_dir) if i.endswith('.pth')]
+                resume_models = natsorted(resume_models)
                 
-                resume_model_path = os.path.join(output_dir, "checkpoint.pth")
-            else:
-                resume_model_path = ""
+                if len(resume_models) > 0:
+                    resume_model_path = os.path.join(output_dir, resume_models[-1])
             
             if os.path.exists(resume_model_path):
-                self.output_dir = output_dir
                 self.epoch, self.best_result, self.best_epoch = load_checkpoint(
                     model=self.model,
                     optimizer=self.optimizer,
@@ -77,17 +82,16 @@ class Trainer(object):
                     map_location='cpu',
                     logger=self.logger)
                 self.lr_scheduler.last_epoch = self.epoch - 1
-                if self.logger is not None:
-                    self.logger.info("Loading Checkpoint... Best Result:{}, Best Epoch:{}".format(self.best_result, self.best_epoch))
+                self.logger.info("Loading Checkpoint... Best Result:{}, Best Epoch:{}".format(self.best_result, self.best_epoch))
+                    
             else:
-                if self.logger is not None:
-                    self.logger.info("Loading checkpoint failed. Starting from beginning")
+                self.logger.info("Loading checkpoint failed. Starting from beginning")
             
         
     def train(self):
         start_epoch = self.epoch
 
-        progress_bar = tqdm(range(start_epoch, self.cfg['max_epoch']), leave=True, desc='epochs') if self.cfg['local_rank'] <= 0 else None
+        progress_bar = tqdm(range(start_epoch, self.cfg['max_epoch']), initial=start_epoch, total=self.cfg['max_epoch'], leave=True, desc='epochs', ncols=100) if self.cfg['local_rank'] <= 0 else None
         best_result = self.best_result
         best_epoch = self.best_epoch
         for epoch in range(start_epoch, self.cfg['max_epoch']):
@@ -112,30 +116,29 @@ class Trainer(object):
                 else:
                     ckpt_name = os.path.join(self.output_dir, 'checkpoint')
                
-                save_checkpoint(
-                    get_checkpoint_state(self.model, self.optimizer, self.epoch, best_result, best_epoch),
-                    ckpt_name)
+                if self.cfg['local_rank'] <= 0:
+                    save_checkpoint(
+                        get_checkpoint_state(self.model, self.optimizer, self.epoch, best_result, best_epoch),
+                        ckpt_name)
 
                 if self.tester is not None:
-                    if self.logger is not None:
-                        self.logger.info("Test Epoch {}".format(self.epoch))
+                    self.logger.info("Test Epoch {}".format(self.epoch))
                     self.tester.inference()
                     cur_result = self.tester.evaluate()
                     if cur_result > best_result:
                         best_result = cur_result
                         best_epoch = self.epoch
                         ckpt_name = os.path.join(self.output_dir, 'checkpoint_best')
-                        save_checkpoint(
-                            get_checkpoint_state(self.model, self.optimizer, self.epoch, best_result, best_epoch),
-                            ckpt_name)
-                    if self.logger is not None:
-                        self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
+                        if self.cfg['local_rank'] <= 0:
+                            save_checkpoint(
+                                get_checkpoint_state(self.model, self.optimizer, self.epoch, best_result, best_epoch),
+                                ckpt_name)
+                    self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
 
             if progress_bar is not None:
                 progress_bar.update()
 
-        if self.logger is not None:
-            self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
+        self.logger.info("Best Result:{}, epoch:{}".format(best_result, best_epoch))
 
         return None
 
@@ -145,7 +148,7 @@ class Trainer(object):
         self.logger.info("Epoch:" + str(epoch))
         self.logger.info("LR:" + str(self.lr_scheduler.get_last_lr()[0]))
 
-        progress_bar = tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters') if self.cfg['local_rank'] <= 0 else None
+        progress_bar = tqdm(total=len(self.train_loader), leave=(self.epoch+1 == self.cfg['max_epoch']), desc='iters', ncols=100) if self.cfg['local_rank'] <= 0 else None
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.train_loader):
             inputs = inputs.to(self.device)
             calibs = calibs.to(self.device)
@@ -198,8 +201,6 @@ class Trainer(object):
 
             if progress_bar is not None:
                 progress_bar.update()
-        if progress_bar is not None:
-            progress_bar.close()
 
     def prepare_targets(self, targets, batch_size):
         targets_list = []

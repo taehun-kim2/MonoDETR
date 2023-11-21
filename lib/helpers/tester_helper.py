@@ -4,8 +4,7 @@ import shutil
 import datetime
 
 from functools import partial
-from tqdm import tqdm as std_tqdm
-tqdm = partial(std_tqdm, dynamic_ncols=True)
+from tqdm import tqdm
 
 import torch
 from lib.helpers.save_helper import load_checkpoint
@@ -73,7 +72,7 @@ class Tester(object):
         self.model.eval()
 
         results = {}
-        progress_bar = tqdm(total=len(self.dataloader), leave=False, desc='Evaluation Progress')
+        progress_bar = tqdm(total=len(self.dataloader), leave=False, desc='Evaluation Progress', ncols=100)
         model_infer_time = 0
         for batch_idx, (inputs, calibs, targets, info) in enumerate(self.dataloader):
             # load evaluation data and move data to GPU.

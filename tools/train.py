@@ -57,6 +57,9 @@ def main():
     cfg['trainer']['device_num'] = device_num
     cfg['trainer']['local_rank'] = local_rank
 
+    if device_num > 1:
+        cuda.set_device(local_rank)
+        dist.init_process_group(backend='nccl', rank=local_rank, world_size=device_num, timeout=datetime.timedelta(seconds=3600))
         
     model_name = cfg['model_name']
     output_path = os.path.join('./' + cfg["trainer"]['save_path'], model_name)
@@ -66,9 +69,6 @@ def main():
     log_file = os.path.join(output_path, 'train.log.%s' % ctime.strftime('%Y%m%d_%H%M%S'))
     logger = create_logger(log_file, rank=local_rank)
 
-    if device_num > 1:
-        cuda.set_device(local_rank)
-        dist.init_process_group(backend='nccl', rank=local_rank, world_size=device_num, timeout=datetime.timedelta(seconds=3600))
         
     # build dataloader
     train_loader, test_loader = build_dataloader(cfg['dataset'], device_num=device_num)

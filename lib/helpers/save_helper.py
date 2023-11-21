@@ -33,11 +33,14 @@ def load_checkpoint(model, optimizer, filename, map_location, logger=None):
         if logger is not None:
             logger.info("==> Loading from checkpoint '{}'".format(filename))
         checkpoint = torch.load(filename, map_location)
-        epoch = checkpoint.get('epoch', -1)
+        epoch = checkpoint.get('epoch', -1)     
         best_result = checkpoint.get('best_result', 0.0)
         best_epoch = checkpoint.get('best_epoch', 0.0)
         if model is not None and checkpoint['model_state'] is not None:
-            model.load_state_dict(checkpoint['model_state'])
+            if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+                model.module.load_state_dict(checkpoint['model_state'])    
+            else:
+                model.load_state_dict(checkpoint['model_state'])
         if optimizer is not None and checkpoint['optimizer_state'] is not None:
             optimizer.load_state_dict(checkpoint['optimizer_state'])
         if logger is not None:

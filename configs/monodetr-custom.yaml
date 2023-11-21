@@ -28,6 +28,7 @@ dataset:
   ignore_threshold: 150
 
   depth_scale: 'normal'
+  num_workers: 16
 
 
 model_name: 'monodetr-custom'
@@ -103,11 +104,11 @@ lr_scheduler:
   type: 'step'  # 'step' or 'cos'
   warmup: False  # 5 epoches, cosine warmup, init_lir=0.00001 in default
   decay_rate: 0.1
-  decay_list: [30, 40]
+  decay_list: [65, 85]
 
 
 trainer:
-  max_epoch: 50
+  max_epoch: 100
   gpu_ids: '1'
   save_frequency: 1  # checkpoint save interval (in epoch)
   resume_model: True
