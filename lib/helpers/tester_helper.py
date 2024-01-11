@@ -28,44 +28,14 @@ class Tester(object):
         self.output_dir = output_dir
         
     def test(self):
-        assert self.cfg['mode'] in ['single', 'all']
-
-        # test a single checkpoint
-        if self.cfg['mode'] == 'single' or not self.train_cfg["save_all"]:
-            if self.checkpoint_path is None:
-                if self.train_cfg["save_all"]:
-                    self.checkpoint_path = os.path.join(self.output_dir, "checkpoint_epoch_{}.pth".format(self.cfg['checkpoint']))
-                else:
-                    self.checkpoint_path = os.path.join(self.output_dir, "checkpoint_best.pth")
-            assert os.path.exists(self.checkpoint_path)
-            load_checkpoint(model=self.model,
-                            optimizer=None,
-                            filename=self.checkpoint_path,
-                            map_location='cpu',
-                            logger=self.logger)
-            self.model.to(self.device)
-            self.inference()
-            self.evaluate()
-
-        # test all checkpoints in the given dir
-        elif self.cfg['mode'] == 'all' and self.train_cfg["save_all"]:
-            start_epoch = int(self.cfg['checkpoint'])
-            checkpoints_list = []
-            for _, _, files in os.walk(self.output_dir):
-                for f in files:
-                    if f.endswith(".pth") and int(f[17:-4]) >= start_epoch:
-                        checkpoints_list.append(os.path.join(self.output_dir, f))
-            checkpoints_list.sort(key=os.path.getmtime)
-
-            for checkpoint in checkpoints_list:
-                load_checkpoint(model=self.model,
-                                optimizer=None,
-                                filename=checkpoint,
-                                map_location='cpu',
-                                logger=self.logger)
-                self.model.to(self.device)
-                self.inference()
-                self.evaluate()
+        load_checkpoint(model=self.model,
+                        optimizer=None,
+                        filename=self.checkpoint_path,
+                        map_location='cpu',
+                        logger=self.logger)
+        self.model.to(self.device)
+        self.inference()
+        self.evaluate()
 
     def inference(self):
         torch.set_grad_enabled(False)
@@ -81,14 +51,11 @@ class Tester(object):
             img_sizes = info['img_size'].to(self.device)
 
             start_time = time.time()
-            ###dn
             outputs = self.model(inputs, calibs, targets, img_sizes, dn_args = 0)
-            ###
             end_time = time.time()
             model_infer_time += end_time - start_time
 
             dets = extract_dets_from_outputs(outputs=outputs, K=self.max_objs, topk=self.cfg['topk'])
-
             dets = dets.detach().cpu().numpy()
 
             # get corresponding calibs & transform tensor to numpy

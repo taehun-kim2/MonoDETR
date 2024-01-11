@@ -363,8 +363,10 @@ class SetCriterion(nn.Module):
         idx = self._get_src_permutation_idx(indices)
         src_3dcenter = outputs['pred_boxes'][:, :, 0: 2][idx]
         target_3dcenter = torch.cat([t['boxes_3d'][:, 0: 2][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        target_3dcenter_valid = torch.cat([t['boxes_3d_valid'][i] for t, (_, i) in zip(targets, indices)], dim=0)
 
         loss_3dcenter = F.l1_loss(src_3dcenter, target_3dcenter, reduction='none')
+        loss_3dcenter = loss_3dcenter * target_3dcenter_valid
         losses = {}
         losses['loss_center'] = loss_3dcenter.sum() / num_boxes
         return losses
@@ -375,9 +377,11 @@ class SetCriterion(nn.Module):
         idx = self._get_src_permutation_idx(indices)
         src_2dboxes = outputs['pred_boxes'][:, :, 2: 6][idx]
         target_2dboxes = torch.cat([t['boxes_3d'][:, 2: 6][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        target_2dboxes_valid = torch.cat([t['boxes_3d_valid'][i] for t, (_, i) in zip(targets, indices)], dim=0)
 
         # l1
         loss_bbox = F.l1_loss(src_2dboxes, target_2dboxes, reduction='none')
+        loss_bbox = loss_bbox * target_2dboxes_valid
         losses = {}
         losses['loss_bbox'] = loss_bbox.sum() / num_boxes
 
@@ -387,6 +391,7 @@ class SetCriterion(nn.Module):
         loss_giou = 1 - torch.diag(box_ops.generalized_box_iou(
             box_ops.box_cxcylrtb_to_xyxy(src_boxes),
             box_ops.box_cxcylrtb_to_xyxy(target_boxes)))
+        loss_giou = loss_giou * target_2dboxes_valid
         losses['loss_giou'] = loss_giou.sum() / num_boxes
         return losses
 
@@ -396,9 +401,11 @@ class SetCriterion(nn.Module):
    
         src_depths = outputs['pred_depth'][idx]
         target_depths = torch.cat([t['depth'][i] for t, (_, i) in zip(targets, indices)], dim=0).squeeze()
+        target_depths_valid = torch.cat([t['boxes_3d_valid'][i] for t, (_, i) in zip(targets, indices)], dim=0)
 
         depth_input, depth_log_variance = src_depths[:, 0], src_depths[:, 1] 
-        depth_loss = 1.4142 * torch.exp(-depth_log_variance) * torch.abs(depth_input - target_depths) + depth_log_variance  
+        depth_loss = 1.4142 * torch.exp(-depth_log_variance) * torch.abs(depth_input - target_depths) + depth_log_variance
+        depth_loss = depth_loss * target_depths_valid.flatten()
         losses = {}
         losses['loss_depth'] = depth_loss.sum() / num_boxes 
         return losses  
@@ -408,6 +415,7 @@ class SetCriterion(nn.Module):
         idx = self._get_src_permutation_idx(indices)
         src_dims = outputs['pred_3d_dim'][idx]
         target_dims = torch.cat([t['size_3d'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        target_dims_valid = torch.cat([t['boxes_3d_valid'][i] for t, (_, i) in zip(targets, indices)], dim=0)
 
         dimension = target_dims.clone().detach()
         dim_loss = torch.abs(src_dims - target_dims)
@@ -415,6 +423,7 @@ class SetCriterion(nn.Module):
         with torch.no_grad():
             compensation_weight = F.l1_loss(src_dims, target_dims) / dim_loss.mean()
         dim_loss *= compensation_weight
+        dim_loss = dim_loss * target_dims_valid
         losses = {}
         losses['loss_dim'] = dim_loss.sum() / num_boxes
         return losses
@@ -425,6 +434,7 @@ class SetCriterion(nn.Module):
         heading_input = outputs['pred_angle'][idx]
         target_heading_cls = torch.cat([t['heading_bin'][i] for t, (_, i) in zip(targets, indices)], dim=0)
         target_heading_res = torch.cat([t['heading_res'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        target_heading_valid = torch.cat([t['boxes_3d_valid'][i] for t, (_, i) in zip(targets, indices)], dim=0)
 
         heading_input = heading_input.view(-1, 24)
         heading_target_cls = target_heading_cls.view(-1).long()
@@ -440,7 +450,7 @@ class SetCriterion(nn.Module):
         heading_input_res = torch.sum(heading_input_res * cls_onehot, 1)
         reg_loss = F.l1_loss(heading_input_res, heading_target_res, reduction='none')
         
-        angle_loss = cls_loss + reg_loss
+        angle_loss = (cls_loss + reg_loss) * target_heading_valid.flatten()
         losses = {}
         losses['loss_angle'] = angle_loss.sum() / num_boxes 
         return losses

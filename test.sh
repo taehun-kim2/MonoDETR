@@ -1,1 +1,1 @@
-CUDA_VISIBLE_DEVICES=$1 python tools/eval.py --config $2
+python tools/eval.py $1 $2 

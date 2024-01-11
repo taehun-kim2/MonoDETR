@@ -38,7 +38,7 @@ class Custom_Dataset(data.Dataset):
         self.cls2id = dict(zip(class_name, [i for i in range(len(class_name))]))
         self.resolution = np.array(cfg.get('resolution', [1280, 768]))  # W * H
         self.use_3d_center = cfg.get('use_3d_center', True)
-        self.writelist = class_name[:-1]
+        self.writelist = class_name
         # anno: use src annotations as GT, proj: use projected 2d bboxes as GT
         self.bbox2d_type = cfg.get('bbox2d_type', 'anno')
         assert self.bbox2d_type in ['anno', 'proj']
@@ -227,6 +227,8 @@ class Custom_Dataset(data.Dataset):
         src_size_3d = np.zeros((self.max_objs, 3), dtype=np.float32)
         boxes = np.zeros((self.max_objs, 4), dtype=np.float32)
         boxes_3d = np.zeros((self.max_objs, 6), dtype=np.float32)
+        boxes_valid = np.zeros((self.max_objs, 1), dtype=np.float32)
+        boxes_3d_valid = np.zeros((self.max_objs, 1), dtype=np.float32)
 
         object_num = len(objects) if len(objects) < self.max_objs else self.max_objs
 
@@ -236,7 +238,7 @@ class Custom_Dataset(data.Dataset):
                 continue
 
             # filter inappropriate samples
-            if objects[i].level_str == 'UnKnown' or objects[i].pos[-1] < 2:
+            if objects[i].level_str == 'UnKnown':
                 continue
 
             # ignore the samples beyond the threshold [hard encoding]
@@ -262,20 +264,27 @@ class Custom_Dataset(data.Dataset):
                 center_3d[0] = img_size[0] - center_3d[0]
             center_3d = affine_transform(center_3d.reshape(-1), trans)
 
+            # filter 2d center out of img
+            box_2d_valid = True
+            if center_2d[0] < 0 or center_2d[0] >= self.resolution[0]: 
+                box_2d_valid = False
+            if center_2d[1] < 0 or center_2d[1] >= self.resolution[1]: 
+                box_2d_valid = False
+                
             # filter 3d center out of img
-            proj_inside_img = True
-
+            box_3d_valid = True
             if center_3d[0] < 0 or center_3d[0] >= self.resolution[0]: 
-                proj_inside_img = False
+                box_3d_valid = False
             if center_3d[1] < 0 or center_3d[1] >= self.resolution[1]: 
-                proj_inside_img = False
-
-            if proj_inside_img == False:
-                    continue
-
-            # class
-            cls = objects[i].cls_type
+                box_3d_valid = False
+            if 0 < objects[i].pos[-1] < 2:
+                box_3d_valid = False
+                
+            # filter invalid sample
+            if (not box_2d_valid) & (not box_3d_valid):
+                continue
             
+            # class
             cls_id = self.cls2id[objects[i].cls_type]
             labels[i] = cls_id
 
@@ -305,6 +314,8 @@ class Custom_Dataset(data.Dataset):
 
             boxes[i] = center_2d_norm[0], center_2d_norm[1], size_2d_norm[0], size_2d_norm[1]
             boxes_3d[i] = center_3d_norm[0], center_3d_norm[1], l, r, t, b
+            boxes_valid[i] = box_2d_valid
+            boxes_3d_valid[i] = box_3d_valid
 
             # encoding depth
             if self.depth_scale == 'normal':
@@ -340,7 +351,9 @@ class Custom_Dataset(data.Dataset):
                    'img_size': img_size,
                    'labels': labels,
                    'boxes': boxes,
+                   'boxes_valid': boxes_valid,
                    'boxes_3d': boxes_3d,
+                   'boxes_3d_valid': boxes_3d_valid,
                    'depth': depth,
                    'size_2d': size_2d,
                    'size_3d': size_3d,

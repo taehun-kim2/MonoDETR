@@ -15,17 +15,14 @@ import datetime
 
 from lib.helpers.model_helper import build_model
 from lib.helpers.dataloader_helper import build_dataloader
-from lib.helpers.optimizer_helper import build_optimizer
-from lib.helpers.scheduler_helper import build_lr_scheduler
-from lib.helpers.trainer_helper import Trainer
 from lib.helpers.tester_helper import Tester
 from lib.helpers.utils_helper import create_logger
 from lib.helpers.utils_helper import set_random_seed
 
 
 parser = argparse.ArgumentParser(description='Depth-aware Transformer for Monocular 3D Object Detection')
-parser.add_argument('--config', dest='config', help='settings of detection in yaml format')
-parser.add_argument('--ckpt', type=str)
+parser.add_argument('config', help='settings of detection in yaml format')
+parser.add_argument('ckpt', type=str)
 args = parser.parse_args()
 
 
@@ -47,8 +44,6 @@ def main():
 
     # build model
     model, _ = build_model(cfg['model'])
-    gpu_ids = list(map(int, cfg['trainer']['gpu_ids'].split(',')))
-
     model = model.cuda()
 
     output_dir = os.path.join('./' + cfg["trainer"]['save_path'], model_name, ctime.strftime('%Y%m%d_%H%M%S'))

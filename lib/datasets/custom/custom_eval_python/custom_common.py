@@ -332,7 +332,7 @@ def get_label_anno(label_path):
 def get_label_annos(label_folder, filenames=None):
     if filenames is None:
         filenames = os.listdir(label_folder)
-        filenames = sorted(filenames)
+    filenames = sorted(filenames)
         
     annos = []
     for file in filenames:
